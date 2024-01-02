@@ -95,7 +95,7 @@ const Chart: React.FC<ChartProps> = ({
     //   },
     // ],
     stroke: {
-      width: 3, // Slightly increased width
+      width: 1, // Slightly increased width
       curve: "smooth", // Changed to smooth for testing
     },
     fill: {
@@ -118,10 +118,10 @@ const Chart: React.FC<ChartProps> = ({
       enabled: false,
     },
     markers: {
-      size: 4,
+      size: 1,
       colors: "#fff",
       strokeColors: ["#3056D3", "#80CAEE"],
-      strokeWidth: 3,
+      strokeWidth: 1,
       strokeOpacity: 0.9,
       strokeDashArray: 0,
       fillOpacity: 1,
