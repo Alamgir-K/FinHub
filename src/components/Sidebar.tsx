@@ -7,16 +7,10 @@ import { IoIosClose } from "react-icons/io";
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (arg: boolean) => void;
-  setGraphTitle: any;
-  setDataLink: any;
+  setIndex: any;
 }
 
-const Sidebar = ({
-  sidebarOpen,
-  setSidebarOpen,
-  setGraphTitle,
-  setDataLink,
-}: SidebarProps) => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
 
@@ -25,14 +19,9 @@ const Sidebar = ({
     storedSidebarExpanded === null ? false : storedSidebarExpanded === "true"
   );
 
-  const [isDemeanedOpen, setDemeaned] = useState(false);
-  const [isNotDemeanedOpen, setNotDemeanedOpen] = useState(false);
-  const [isStandardizedOpen, setStandardizedOpen] = useState(false);
-
   // Function to handle button clicks
-  const handleButtonClick = (value: string, title: string) => {
-    setDataLink(value);
-    setGraphTitle(title);
+  const handleButtonClick = (index: any) => {
+    setIndex(index);
   };
 
   // close on click outside
@@ -90,94 +79,20 @@ const Sidebar = ({
         <nav className="mt-5 py-4 px-4 lg:mt-9 lg:px-6">
           {/* <!-- Attention Group --> */}
           <div className="mb-20">
-            <h3 className="mb-4 ml-4 text-sm font-semibold">Attention</h3>
+            <h3 className="mb-4 ml-4 text-sm font-semibold">
+              Macroeconomic Attention Indices
+            </h3>
 
             <ul className="mb-6 flex flex-col gap-1.5">
-              <li>
-                <button
-                  onClick={() => setDemeaned(!isDemeanedOpen)}
-                  className="flex items-center"
+              {indices.map((index) => (
+                <li
+                  key={index.title}
+                  className="ml-4 cursor-pointer"
+                  onClick={() => handleButtonClick(index)}
                 >
-                  <RiArrowDropDownLine
-                    className={`transform transition-transform mr-2 ${
-                      isDemeanedOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                  <span className="text-base font-medium">Demeaned</span>
-                </button>
-                {isDemeanedOpen && (
-                  <ul className="ml-10">
-                    <li
-                      onClick={() =>
-                        handleButtonClick(
-                          "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/monetary%20and%20unemployment%20updated%20to%202022/MAI_Monthly_Demeaned.csv",
-                          "Demeaned DGraph"
-                        )
-                      }
-                      className="cursor-pointer"
-                    >
-                      DGraph
-                    </li>
-                  </ul>
-                )}
-              </li>
-              <li>
-                <button
-                  onClick={() => setNotDemeanedOpen(!isNotDemeanedOpen)}
-                  className="flex items-center"
-                >
-                  <RiArrowDropDownLine
-                    className={`transform transition-transform mr-2 ${
-                      isNotDemeanedOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                  <span className="text-base font-medium">Not Demeaned</span>
-                </button>
-                {isNotDemeanedOpen && (
-                  <ul className="ml-10">
-                    <li
-                      onClick={() =>
-                        handleButtonClick(
-                          "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/monetary%20and%20unemployment%20updated%20to%202022/MAI_Monthly_NotDemeaned.csv",
-                          "Demeaned DNotGraph"
-                        )
-                      }
-                      className="cursor-pointer"
-                    >
-                      DNotGraph
-                    </li>
-                  </ul>
-                )}
-              </li>
-              <li>
-                <button
-                  onClick={() => setStandardizedOpen(!isStandardizedOpen)}
-                  className="flex items-center"
-                >
-                  <RiArrowDropDownLine
-                    className={`transform transition-transform mr-2 ${
-                      isStandardizedOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                  <span className="text-base font-medium">Standardized</span>
-                </button>
-                {isStandardizedOpen && (
-                  <ul className="ml-10">
-                    <li
-                      onClick={() =>
-                        handleButtonClick(
-                          "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/monetary%20and%20unemployment%20updated%20to%202022/MAI_Monthly_Standardized.csv",
-                          "Demeaned SGraph"
-                        )
-                      }
-                      className="cursor-pointer"
-                    >
-                      SGraph
-                    </li>
-                  </ul>
-                )}
-              </li>
-              {/* Repeat the same pattern for Y and Z */}
+                  <span className="text-base font-medium">{index.title}</span>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -199,3 +114,14 @@ const Sidebar = ({
 };
 
 export default Sidebar;
+
+const indices = [
+  { title: "Credit Rating", columns: [1, 2, 3] },
+  { title: "GDP", columns: [4, 5, 6] },
+  { title: "Housing Market", columns: [7, 8, 9] }, // Assuming similar columns as above
+  { title: "Inflation", columns: [10, 11, 12] },
+  { title: "Monetary", columns: [13, 14, 15] },
+  { title: "Oil", columns: [16, 17, 18] },
+  { title: "Unemployment", columns: [19, 20, 21] },
+  { title: "U.S. Dollar", columns: [22, 23, 24] },
+];

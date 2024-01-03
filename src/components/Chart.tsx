@@ -5,41 +5,118 @@ import { ApexOptions } from "apexcharts";
 // Define the shape of the data point
 interface DataPoint {
   date: string;
-  yvalue: number;
+  defaultValue: number;
+  wiValue: number;
+  niValue: number;
 }
 
 // Props for the Chart component
 interface ChartProps {
-  data: DataPoint[]; // Add a prop for the external data
-  dataLink: any;
-  setDataLink: any;
-  graphTitle: any;
+  index: any;
 }
 
-const Chart: React.FC<ChartProps> = ({
-  data,
-  dataLink,
-  setDataLink,
-  graphTitle,
-}) => {
+// Define the shape of each series object
+interface Series {
+  name: string;
+  data: number[];
+}
+
+const Chart: React.FC<ChartProps> = ({ index }) => {
+  type DataLinkKey = keyof typeof dataLinks;
+  const dataLinks = {
+    Demeaned:
+      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Demeaned.csv",
+    NotDemeaned:
+      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_NotDemeaned.csv",
+    Standardized:
+      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Standardized.csv",
+  };
+
+  const [dataLink, setDataLink] = useState<DataLinkKey>("Demeaned");
   const chartRef = useRef(null);
+  const [allData, setAllData] = useState<{ [key in DataLinkKey]: DataPoint[] }>(
+    {
+      Demeaned: [],
+      NotDemeaned: [],
+      Standardized: [],
+    }
+  );
+  const [showDefaultValue, setShowDefaultValue] = useState(true);
+  const [showWiValue, setShowWiValue] = useState(false);
+  const [showNiValue, setShowNiValue] = useState(false);
+  const [seriesData, setSeriesData] = useState<Series[]>([]);
+
+  // Load all data when the component mounts
+  useEffect(() => {
+    Promise.all(
+      Object.entries(dataLinks).map(([key, url]) =>
+        fetch(url)
+          .then((response) => response.text())
+          .then((text) => {
+            const rows = text.split("\n").slice(1);
+            const newData = rows.map((row) => {
+              const columns = row.split(",");
+              return {
+                date: columns[0],
+                defaultValue: parseFloat(columns[index.columns[0]]),
+                wiValue: parseFloat(columns[index.columns[1]]),
+                niValue: parseFloat(columns[index.columns[2]]),
+              };
+            });
+            return { key, newData };
+          })
+      )
+    ).then((results) => {
+      const newData = results.reduce<{ [key in DataLinkKey]: DataPoint[] }>(
+        (acc, { key, newData }) => ({ ...acc, [key]: newData }),
+        { Demeaned: [], NotDemeaned: [], Standardized: [] } // Initial value with explicit type
+      );
+      setAllData(newData);
+    });
+  }, [index]);
+
+  // Update seriesData whenever the related states change
+  useEffect(() => {
+    const currentData = allData[dataLink]; // Use data from preloaded datasets
+
+    const newSeriesData: Series[] = [];
+    if (showDefaultValue) {
+      newSeriesData.push({
+        name: "Default Value",
+        data: currentData.map((dp) => dp.defaultValue),
+      });
+    }
+    if (showWiValue) {
+      newSeriesData.push({
+        name: "WSJ Value",
+        data: currentData.map((dp) => dp.wiValue),
+      });
+    }
+    if (showNiValue) {
+      newSeriesData.push({
+        name: "NYT Value",
+        data: currentData.map((dp) => dp.niValue),
+      });
+    }
+    setSeriesData(newSeriesData);
+  }, [allData, dataLink, showDefaultValue, showWiValue, showNiValue]);
+
+  const handleButtonClick = (dataLinkKey: DataLinkKey) => {
+    setDataLink(dataLinkKey);
+  };
 
   // Chart configuration
   const options: ApexOptions = {
-    colors: ["#3C50E0", "#80CAEE"],
+    colors: ["#3C50E0", "#80CAEE", "#FF914D"],
     chart: {
+      animations: {
+        enabled: false, // Disable animations
+      },
       height: 500, // Adjust height as necessary
-      // parentHeightOffset: 20, // This offsets the height of the chart container
-      // offsetY: 50,
       fontFamily: "Satoshi, sans-serif",
       type: "line",
       dropShadow: {
         enabled: false,
-        color: "#623CEA14",
-        top: 10,
-        blur: 4,
-        left: 0,
-        opacity: 0.1,
       },
       toolbar: {
         show: true,
@@ -75,7 +152,6 @@ const Chart: React.FC<ChartProps> = ({
         autoSelected: "zoom",
       },
     },
-
     // responsive: [
     //   {
     //     breakpoint: 1024,
@@ -95,8 +171,9 @@ const Chart: React.FC<ChartProps> = ({
     //   },
     // ],
     stroke: {
-      width: 1, // Slightly increased width
+      width: 2, // Slightly increased width
       curve: "smooth", // Changed to smooth for testing
+      colors: ["#3C50E0", "#80CAEE", "#FF914D"],
     },
     fill: {
       type: "solid",
@@ -105,7 +182,7 @@ const Chart: React.FC<ChartProps> = ({
     grid: {
       xaxis: {
         lines: {
-          show: true,
+          show: false,
         },
       },
       yaxis: {
@@ -118,9 +195,9 @@ const Chart: React.FC<ChartProps> = ({
       enabled: false,
     },
     markers: {
-      size: 1,
+      size: 2,
       colors: "#fff",
-      strokeColors: ["#3056D3", "#80CAEE"],
+      strokeColors: ["#3C50E0", "#80CAEE", "#FF914D"],
       strokeWidth: 1,
       strokeOpacity: 0.9,
       strokeDashArray: 0,
@@ -133,7 +210,7 @@ const Chart: React.FC<ChartProps> = ({
     },
     xaxis: {
       type: "category",
-      categories: data.map((dp) => dp.date),
+      categories: allData[dataLink].map((dp) => dp.date),
       tickAmount: 40,
       axisBorder: {
         show: false,
@@ -155,34 +232,69 @@ const Chart: React.FC<ChartProps> = ({
     },
   };
 
-  // Series data from props
-  const series = [
-    {
-      name: "Fetched Data",
-      // data: data.map((dp) => Math.round(dp.yvalue * 100) / 100),
-      data: data.map((dp) => dp.yvalue),
-    },
-  ];
-
   return (
-    <div className="col-span-12 rounded-sm border border-stroke bg-white px-5 pt-7.5 pb-5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:col-span-8">
-      <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
-        <div className="flex w-full flex-wrap gap-3 sm:gap-5">
-          <div className="flex min-w-47.5">
-            <div className="w-full">
-              <p className="font-semibold text-primary dark:text-white">
-                {graphTitle}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="flex w-full max-w-45 justify-end">
+    <div className="rounded-sm border border-stroke bg-white px-5 pt-7.5 pb-5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5">
+      <div className="flex flex-wrap items-start justify-between sm:flex-nowrap">
+        <p className="font-semibold text-primary dark:text-white">
+          {index.title}
+        </p>
+        <div className="flex w-full max-w-fit justify-end">
           <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
-            <button className="rounded bg-white py-1 px-3 text-xs font-medium text-black shadow-card hover:bg-white hover:shadow-card dark:bg-boxdark dark:text-white dark:hover:bg-boxdark">
-              Month
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showDefaultValue}
+                onChange={() => setShowDefaultValue(!showDefaultValue)}
+              />
+              <span className="ml-2 text-xs font-medium">Default</span>
+            </label>
+            <label className="flex items-center ml-4">
+              <input
+                type="checkbox"
+                checked={showWiValue}
+                onChange={() => setShowWiValue(!showWiValue)}
+              />
+              <span className="ml-2 text-xs font-medium">WSJ</span>
+            </label>
+            <label className="flex items-center ml-4">
+              <input
+                type="checkbox"
+                checked={showNiValue}
+                onChange={() => setShowNiValue(!showNiValue)}
+              />
+              <span className="ml-2 text-xs font-medium">NYT</span>
+            </label>
+          </div>
+          <div className="ml-4 inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                dataLink === "Demeaned"
+                  ? "text-black bg-white shadow-card"
+                  : "text-black hover:bg-white hover:shadow-card"
+              } dark:text-white dark:hover:bg-boxdark`}
+              onClick={() => handleButtonClick("Demeaned")}
+            >
+              Demeaned
             </button>
-            <button className="rounded py-1 px-3 text-xs font-medium text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark">
-              Year
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                dataLink === "NotDemeaned"
+                  ? "text-black bg-white shadow-card"
+                  : "text-black hover:bg-white hover:shadow-card"
+              } dark:text-white dark:hover:bg-boxdark`}
+              onClick={() => handleButtonClick("NotDemeaned")}
+            >
+              Not Demeaned
+            </button>
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                dataLink === "Standardized"
+                  ? "text-black bg-white shadow-card"
+                  : "text-black hover:bg-white hover:shadow-card"
+              } dark:text-white dark:hover:bg-boxdark`}
+              onClick={() => handleButtonClick("Standardized")}
+            >
+              Standard
             </button>
           </div>
         </div>
@@ -193,7 +305,7 @@ const Chart: React.FC<ChartProps> = ({
           <ReactApexChart
             options={options}
             ref={chartRef}
-            series={series}
+            series={seriesData}
             type="area"
             height={500}
           />
