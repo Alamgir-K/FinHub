@@ -54,19 +54,12 @@ const Header = (props: {
           {/* <!-- Hamburger Toggle BTN --> */}
 
           <Link className="block flex-shrink-0 lg:hidden" to="/">
-            <img className="w-9 h-9" src={Logo} alt="Logo" />
+            <img className="h-9" src={Logo} alt="Logo" />
           </Link>
         </div>
 
         <div className="flex items-center gap-3 2xsm:gap-7">
           <ul className="flex items-center gap-2 2xsm:gap-4">
-            {/* About Link */}
-            <li>
-              <Link to="/about" className="link-class">
-                About
-              </Link>
-            </li>
-
             {/* Methodology Link */}
             <li>
               <Link to="/methodology" className="link-class">
@@ -77,7 +70,13 @@ const Header = (props: {
             {/* Credits Link */}
             <li>
               <Link to="/credits" className="link-class">
-                Credits
+                Research
+              </Link>
+            </li>
+            {/* About Link */}
+            <li>
+              <Link to="/about" className="link-class">
+                About
               </Link>
             </li>
 

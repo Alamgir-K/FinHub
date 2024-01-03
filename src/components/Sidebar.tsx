@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
-import Logo from "../images/logo/rotman-logo.png";
+import Logo from "../images/logo/rotman-logo-modified.png";
 import { RiArrowDropDownLine } from "react-icons/ri";
 import { IoIosClose } from "react-icons/io";
 
@@ -59,7 +59,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
       {/* <!-- SIDEBAR HEADER --> */}
       <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5">
         <NavLink to="/">
-          <img className="w-14 h-14" src={Logo} alt="Logo" />
+          <img className="" src={Logo} alt="Logo" />
         </NavLink>
 
         <button
@@ -85,13 +85,15 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
 
             <ul className="mb-6 flex flex-col gap-1.5">
               {indices.map((index) => (
-                <li
-                  key={index.title}
-                  className="ml-4 cursor-pointer"
-                  onClick={() => handleButtonClick(index)}
-                >
-                  <span className="text-base font-medium">{index.title}</span>
-                </li>
+                <NavLink to="/">
+                  <li
+                    key={index.title}
+                    className="ml-4 cursor-pointer"
+                    onClick={() => handleButtonClick(index)}
+                  >
+                    <span className="text-base font-medium">{index.title}</span>
+                  </li>
+                </NavLink>
               ))}
             </ul>
           </div>

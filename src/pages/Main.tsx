@@ -1,6 +1,5 @@
 import Chart from "../components/Chart";
 import { useOutletContext } from "react-router-dom";
-import { useState } from "react";
 
 interface DefaultLayoutContext {
   dataLink: any;

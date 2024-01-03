@@ -269,9 +269,9 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
             <button
               className={`rounded py-1 px-3 text-xs font-medium ${
                 dataLink === "Demeaned"
-                  ? "text-black bg-white shadow-card"
-                  : "text-black hover:bg-white hover:shadow-card"
-              } dark:text-white dark:hover:bg-boxdark`}
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
               onClick={() => handleButtonClick("Demeaned")}
             >
               Demeaned
@@ -279,9 +279,9 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
             <button
               className={`rounded py-1 px-3 text-xs font-medium ${
                 dataLink === "NotDemeaned"
-                  ? "text-black bg-white shadow-card"
-                  : "text-black hover:bg-white hover:shadow-card"
-              } dark:text-white dark:hover:bg-boxdark`}
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
               onClick={() => handleButtonClick("NotDemeaned")}
             >
               Not Demeaned
@@ -289,9 +289,9 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
             <button
               className={`rounded py-1 px-3 text-xs font-medium ${
                 dataLink === "Standardized"
-                  ? "text-black bg-white shadow-card"
-                  : "text-black hover:bg-white hover:shadow-card"
-              } dark:text-white dark:hover:bg-boxdark`}
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
               onClick={() => handleButtonClick("Standardized")}
             >
               Standard
