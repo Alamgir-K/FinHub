@@ -22,6 +22,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
   // Function to handle button clicks
   const handleButtonClick = (index: any) => {
     setIndex(index);
+    setSidebarOpen(false); // This will close the sidebar
   };
 
   // close on click outside
