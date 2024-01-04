@@ -16,20 +16,29 @@ interface ChartProps {
 }
 
 // Define the shape of each series object
+// Modify the Series interface to accept data points with x and y properties
 interface Series {
   name: string;
-  data: number[];
+  data: { x: string; y: number }[]; // Update the type of 'data' to an array of objects
 }
 
 const Chart: React.FC<ChartProps> = ({ index }) => {
-  type DataLinkKey = keyof typeof dataLinks;
-  const dataLinks = {
+  type DataLinkKey = keyof typeof monthlyDataLinks;
+  const monthlyDataLinks = {
     Demeaned:
       "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Demeaned.csv",
     NotDemeaned:
       "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_NotDemeaned.csv",
     Standardized:
       "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Standardized.csv",
+  };
+  const dailyDataLinks = {
+    Demeaned:
+      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_Demeaned.csv",
+    NotDemeaned:
+      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_NotDemeaned.csv",
+    Standardized:
+      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_Standardized.csv",
   };
 
   const [dataLink, setDataLink] = useState<DataLinkKey>("Demeaned");
@@ -49,7 +58,7 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
   // Load all data when the component mounts
   useEffect(() => {
     Promise.all(
-      Object.entries(dataLinks).map(([key, url]) =>
+      Object.entries(monthlyDataLinks).map(([key, url]) =>
         fetch(url)
           .then((response) => response.text())
           .then((text) => {
@@ -83,19 +92,19 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
     if (showDefaultValue) {
       newSeriesData.push({
         name: "Default Value",
-        data: currentData.map((dp) => dp.defaultValue),
+        data: currentData.map((dp) => ({ x: dp.date, y: dp.defaultValue })),
       });
     }
     if (showWiValue) {
       newSeriesData.push({
         name: "WSJ Value",
-        data: currentData.map((dp) => dp.wiValue),
+        data: currentData.map((dp) => ({ x: dp.date, y: dp.wiValue })),
       });
     }
     if (showNiValue) {
       newSeriesData.push({
         name: "NYT Value",
-        data: currentData.map((dp) => dp.niValue),
+        data: currentData.map((dp) => ({ x: dp.date, y: dp.niValue })),
       });
     }
     setSeriesData(newSeriesData);
@@ -105,9 +114,54 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
     setDataLink(dataLinkKey);
   };
 
+  const downloadCsv = async () => {
+    const url = dailyDataLinks[dataLink]; // Fetch the correct URL based on the current data link
+    const response = await fetch(url);
+    const text = await response.text();
+
+    // Define the headings
+    let headings = ["Date"];
+    if (showDefaultValue) headings.push("Default Value");
+    if (showWiValue) headings.push("WSJ Value");
+    if (showNiValue) headings.push("NYT Value");
+
+    // Process the CSV data
+    const rows = text.split("\n").slice(1);
+    const filteredData = rows.map((row) => {
+      const columns = row.split(",");
+      let selectedData = [columns[0]]; // Always include the date
+      if (showDefaultValue) selectedData.push(columns[index.columns[0]]);
+      if (showWiValue) selectedData.push(columns[index.columns[1]]);
+      if (showNiValue) selectedData.push(columns[index.columns[2]]);
+      return selectedData.join(",");
+    });
+
+    // Prepend headings and convert array to CSV string
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headings.join(","), ...filteredData].join("\n");
+
+    // Create a link to trigger the download
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${index.title}_${dataLink}.csv`);
+    document.body.appendChild(link); // Required for FF
+
+    // Trigger the download
+    link.click();
+    document.body.removeChild(link); // Clean up
+  };
+
   // Chart configuration
   const options: ApexOptions = {
     colors: ["#3C50E0", "#80CAEE", "#FF914D"],
+    tooltip: {
+      x: {
+        format: "dd MMM yyyy", // Format the date as 'Day Month Year'
+      },
+      // ... [other tooltip options if needed] ...
+    },
     chart: {
       animations: {
         enabled: false, // Disable animations
@@ -134,19 +188,20 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
         },
         export: {
           csv: {
-            filename: undefined,
+            filename: index.title + " " + dataLink,
             columnDelimiter: ",",
-            headerCategory: "category",
-            headerValue: "value",
-            // dateFormatter(timestamp) {
-            //   return new Date(timestamp).toDateString();
-            // },
+            headerCategory: "Date",
+            headerValue: "Value",
+            dateFormatter: (timestamp) => {
+              // Assuming timestamp is in the format YYYY-MM-DD
+              return timestamp;
+            },
           },
           svg: {
-            filename: undefined,
+            filename: index.title + " " + dataLink,
           },
           png: {
-            filename: undefined,
+            filename: index.title + " " + dataLink,
           },
         },
         autoSelected: "zoom",
@@ -209,8 +264,7 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
       },
     },
     xaxis: {
-      type: "category",
-      categories: allData[dataLink].map((dp) => dp.date),
+      type: "datetime", // Set type to 'datetime'
       tickAmount: 40,
       axisBorder: {
         show: false,
@@ -246,7 +300,9 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
                 checked={showDefaultValue}
                 onChange={() => setShowDefaultValue(!showDefaultValue)}
               />
-              <span className="ml-2 text-xs font-medium">Default</span>
+              <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                Default
+              </span>
             </label>
             <label className="flex items-center ml-4">
               <input
@@ -254,7 +310,9 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
                 checked={showWiValue}
                 onChange={() => setShowWiValue(!showWiValue)}
               />
-              <span className="ml-2 text-xs font-medium">WSJ</span>
+              <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                WSJ
+              </span>
             </label>
             <label className="flex items-center ml-4">
               <input
@@ -262,7 +320,9 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
                 checked={showNiValue}
                 onChange={() => setShowNiValue(!showNiValue)}
               />
-              <span className="ml-2 text-xs font-medium">NYT</span>
+              <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                NYT
+              </span>
             </label>
           </div>
           <div className="ml-4 inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
@@ -295,6 +355,14 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
               onClick={() => handleButtonClick("Standardized")}
             >
               Standard
+            </button>
+          </div>
+          <div className="ml-4 inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark`}
+              onClick={downloadCsv}
+            >
+              Download Daily Data
             </button>
           </div>
         </div>
