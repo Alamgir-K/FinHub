@@ -69,7 +69,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
           aria-expanded={sidebarOpen}
           className="block lg:hidden"
         >
-          <IoIosClose />
+          <IoIosClose className="text-white w-8 h-8" />
         </button>
       </div>
       {/* <!-- SIDEBAR HEADER --> */}

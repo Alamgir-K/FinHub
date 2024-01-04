@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import Logo from "../images/logo/rotman-logo.png";
+import WhiteLogo from "../images/logo/rotman-logo-modified.png";
 import DarkModeSwitcher from "./DarkModeSwitcher";
 
 const Header = (props: {
@@ -53,31 +54,32 @@ const Header = (props: {
           </button>
           {/* <!-- Hamburger Toggle BTN --> */}
 
-          <Link className="block flex-shrink-0 lg:hidden" to="/">
-            <img className="h-9" src={Logo} alt="Logo" />
+          <Link className="flex-shrink-0 hidden xsm:block lg:hidden" to="/">
+            {/* Regular Logo, hidden in dark mode */}
+            <img className="h-9 dark:hidden" src={Logo} alt="Logo" />
+            {/* White Logo, shown only in dark mode */}
+            <img
+              className="h-9 hidden dark:block"
+              src={WhiteLogo}
+              alt="White Logo"
+            />
           </Link>
         </div>
 
-        <div className="flex items-center gap-3 2xsm:gap-7">
+        <div className="flex items-center gap-3 2xsm:gap-7 text-black dark:text-white">
           <ul className="flex items-center gap-2 2xsm:gap-4">
             {/* Methodology Link */}
             <li>
-              <Link to="/methodology" className="link-class">
-                Methodology
-              </Link>
+              <Link to="/methodology">Methodology</Link>
             </li>
 
             {/* Credits Link */}
             <li>
-              <Link to="/credits" className="link-class">
-                Research
-              </Link>
+              <Link to="/credits">Research</Link>
             </li>
             {/* About Link */}
             <li>
-              <Link to="/about" className="link-class">
-                About
-              </Link>
+              <Link to="/about">About</Link>
             </li>
 
             {/* <!-- Dark Mode Toggler --> */}
