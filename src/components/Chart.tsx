@@ -114,8 +114,11 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
     setDataLink(dataLinkKey);
   };
 
-  const downloadCsv = async () => {
-    const url = dailyDataLinks[dataLink]; // Fetch the correct URL based on the current data link
+  const downloadCsv = async (dataType: string) => {
+    const url =
+      dataType === "daily"
+        ? dailyDataLinks[dataLink]
+        : monthlyDataLinks[dataLink];
     const response = await fetch(url);
     const text = await response.text();
 
@@ -145,7 +148,7 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${index.title}_${dataLink}.csv`);
+    link.setAttribute("download", `${index.title}_${dataLink}_${dataType}.csv`);
     document.body.appendChild(link); // Required for FF
 
     // Trigger the download
@@ -250,18 +253,7 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
       enabled: false,
     },
     markers: {
-      size: 2,
-      colors: "#fff",
-      strokeColors: ["#3C50E0", "#80CAEE", "#FF914D"],
-      strokeWidth: 1,
-      strokeOpacity: 0.9,
-      strokeDashArray: 0,
-      fillOpacity: 1,
-      discrete: [],
-      hover: {
-        size: undefined,
-        sizeOffset: 5,
-      },
+      size: 0,
     },
     xaxis: {
       type: "datetime", // Set type to 'datetime'
@@ -288,83 +280,87 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
 
   return (
     <div className="rounded-sm border border-stroke bg-white px-5 pt-7.5 pb-5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5">
-      <div className="flex flex-wrap items-start justify-between sm:flex-nowrap">
-        <p className="font-semibold text-primary dark:text-white">
-          {index.title}
-        </p>
-        <div className="flex w-full max-w-fit justify-end">
-          <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={showDefaultValue}
-                onChange={() => setShowDefaultValue(!showDefaultValue)}
-              />
-              <span className="ml-2 text-xs font-medium text-black dark:text-white">
-                Default
-              </span>
-            </label>
-            <label className="flex items-center ml-4">
-              <input
-                type="checkbox"
-                checked={showWiValue}
-                onChange={() => setShowWiValue(!showWiValue)}
-              />
-              <span className="ml-2 text-xs font-medium text-black dark:text-white">
-                WSJ
-              </span>
-            </label>
-            <label className="flex items-center ml-4">
-              <input
-                type="checkbox"
-                checked={showNiValue}
-                onChange={() => setShowNiValue(!showNiValue)}
-              />
-              <span className="ml-2 text-xs font-medium text-black dark:text-white">
-                NYT
-              </span>
-            </label>
-          </div>
-          <div className="ml-4 inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
-            <button
-              className={`rounded py-1 px-3 text-xs font-medium ${
-                dataLink === "Demeaned"
-                  ? "text-black bg-white shadow-card "
-                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
-              }  `}
-              onClick={() => handleButtonClick("Demeaned")}
-            >
-              Demeaned
-            </button>
-            <button
-              className={`rounded py-1 px-3 text-xs font-medium ${
-                dataLink === "NotDemeaned"
-                  ? "text-black bg-white shadow-card "
-                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
-              }  `}
-              onClick={() => handleButtonClick("NotDemeaned")}
-            >
-              Not Demeaned
-            </button>
-            <button
-              className={`rounded py-1 px-3 text-xs font-medium ${
-                dataLink === "Standardized"
-                  ? "text-black bg-white shadow-card "
-                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
-              }  `}
-              onClick={() => handleButtonClick("Standardized")}
-            >
-              Standard
-            </button>
-          </div>
-          <div className="ml-4 inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
-            <button
-              className={`rounded py-1 px-3 text-xs font-medium text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark`}
-              onClick={downloadCsv}
-            >
-              Download Daily Data
-            </button>
-          </div>
+      <p className="block font-semibold text-primary dark:text-white">
+        {index.title + " (Monthly Frequency)"}
+      </p>
+      <div className="mt-2 flex w-full flex-wrap gap-2">
+        <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={showDefaultValue}
+              onChange={() => setShowDefaultValue(!showDefaultValue)}
+            />
+            <span className="ml-2 text-xs font-medium text-black dark:text-white">
+              Default
+            </span>
+          </label>
+          <label className="flex items-center ml-4">
+            <input
+              type="checkbox"
+              checked={showWiValue}
+              onChange={() => setShowWiValue(!showWiValue)}
+            />
+            <span className="ml-2 text-xs font-medium text-black dark:text-white">
+              WSJ
+            </span>
+          </label>
+          <label className="flex items-center ml-4">
+            <input
+              type="checkbox"
+              checked={showNiValue}
+              onChange={() => setShowNiValue(!showNiValue)}
+            />
+            <span className="ml-2 text-xs font-medium text-black dark:text-white">
+              NYT
+            </span>
+          </label>
+        </div>
+        <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+          <button
+            className={`rounded py-1 px-3 text-xs font-medium ${
+              dataLink === "Demeaned"
+                ? "text-black bg-white shadow-card "
+                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+            }  `}
+            onClick={() => handleButtonClick("Demeaned")}
+          >
+            Demeaned
+          </button>
+          <button
+            className={`rounded py-1 px-3 text-xs font-medium ${
+              dataLink === "NotDemeaned"
+                ? "text-black bg-white shadow-card "
+                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+            }  `}
+            onClick={() => handleButtonClick("NotDemeaned")}
+          >
+            Not Demeaned
+          </button>
+          <button
+            className={`rounded py-1 px-3 text-xs font-medium ${
+              dataLink === "Standardized"
+                ? "text-black bg-white shadow-card "
+                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+            }  `}
+            onClick={() => handleButtonClick("Standardized")}
+          >
+            Standardized
+          </button>
+        </div>
+        <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+          <button
+            className="rounded py-1 px-3 text-xs font-medium text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+            onClick={() => downloadCsv("daily")}
+          >
+            Download Daily Data
+          </button>
+          <button
+            className="rounded py-1 px-3 text-xs font-medium text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+            onClick={() => downloadCsv("monthly")}
+          >
+            Download Monthly Data
+          </button>
         </div>
       </div>
 
