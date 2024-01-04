@@ -54,6 +54,7 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
   const [showWiValue, setShowWiValue] = useState(false);
   const [showNiValue, setShowNiValue] = useState(false);
   const [seriesData, setSeriesData] = useState<Series[]>([]);
+  const [smoothingLevel, setSmoothingLevel] = useState(0); // 0 for no smoothing, 3 for 3-month smoothing
 
   // Load all data when the component mounts
   useEffect(() => {
@@ -86,32 +87,80 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
 
   // Update seriesData whenever the related states change
   useEffect(() => {
-    const currentData = allData[dataLink]; // Use data from preloaded datasets
+    const currentData = allData[dataLink];
+    // Function to calculate the rolling mean for a given data point index
+    const rollingMean = (
+      data: string | any[],
+      index: number,
+      windowSize: number
+    ) => {
+      let sum = 0;
+      let count = 0;
+      for (
+        let i = Math.max(0, index - Math.floor(windowSize / 2));
+        i < Math.min(data.length, index + Math.ceil(windowSize / 2));
+        i++
+      ) {
+        sum += data[i];
+        count++;
+      }
+      return count > 0 ? sum / count : 0; // Return 0 or another default value if count is 0
+    };
 
-    const newSeriesData: Series[] = [];
+    // Function to generate series data with rolling mean applied
+    const generateSeriesData = (data: any[], valueKey: string) => {
+      return data
+        .map((dp, index) => ({
+          x: dp.date,
+          y:
+            smoothingLevel > 0
+              ? rollingMean(
+                  data.map((d) => d[valueKey]),
+                  index,
+                  smoothingLevel
+                )
+              : dp[valueKey],
+        }))
+        .filter((dp) => !isNaN(dp.y)); // Filter out data points with NaN values
+    };
+
+    const newSeriesData = [];
+
     if (showDefaultValue) {
       newSeriesData.push({
         name: "Default Value",
-        data: currentData.map((dp) => ({ x: dp.date, y: dp.defaultValue })),
+        data: generateSeriesData(currentData, "defaultValue"),
       });
     }
     if (showWiValue) {
       newSeriesData.push({
         name: "WSJ Value",
-        data: currentData.map((dp) => ({ x: dp.date, y: dp.wiValue })),
+        data: generateSeriesData(currentData, "wiValue"),
       });
     }
     if (showNiValue) {
       newSeriesData.push({
         name: "NYT Value",
-        data: currentData.map((dp) => ({ x: dp.date, y: dp.niValue })),
+        data: generateSeriesData(currentData, "niValue"),
       });
     }
+
     setSeriesData(newSeriesData);
-  }, [allData, dataLink, showDefaultValue, showWiValue, showNiValue]);
+  }, [
+    allData,
+    dataLink,
+    showDefaultValue,
+    showWiValue,
+    showNiValue,
+    smoothingLevel,
+  ]);
 
   const handleButtonClick = (dataLinkKey: DataLinkKey) => {
     setDataLink(dataLinkKey);
+  };
+
+  const handleSmoothingClick = (level: number) => {
+    setSmoothingLevel(level);
   };
 
   const downloadCsv = async (dataType: string) => {
@@ -346,6 +395,28 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
             onClick={() => handleButtonClick("Standardized")}
           >
             Standardized
+          </button>
+        </div>
+        <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+          <button
+            className={`rounded py-1 px-3 text-xs font-medium ${
+              smoothingLevel === 0
+                ? "text-black bg-white shadow-card "
+                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+            }`}
+            onClick={() => handleSmoothingClick(0)}
+          >
+            No smoothing
+          </button>
+          <button
+            className={`rounded py-1 px-3 text-xs font-medium ${
+              smoothingLevel === 3
+                ? "text-black bg-white shadow-card "
+                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+            }`}
+            onClick={() => handleSmoothingClick(3)}
+          >
+            3 month smoothing
           </button>
         </div>
         <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
