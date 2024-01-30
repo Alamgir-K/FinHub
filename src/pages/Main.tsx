@@ -1,14 +1,8 @@
 import Chart from "../components/Chart";
 import { useOutletContext } from "react-router-dom";
 
-interface DefaultLayoutContext {
-  dataLink: any;
-  setDataLink: any;
-  index: any;
-}
-
 const Main = () => {
-  const { index } = useOutletContext<DefaultLayoutContext>(); // Specify the type here
+  const { index } = useOutletContext<any>(); // Specify the type here
 
   return (
     <>

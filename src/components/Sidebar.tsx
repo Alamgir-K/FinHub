@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import Logo from "../images/logo/rotman-logo-modified.png";
-import { RiArrowDropDownLine } from "react-icons/ri";
 import { IoIosClose } from "react-icons/io";
 
 interface SidebarProps {
@@ -20,8 +19,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
   );
 
   // Function to handle button clicks
-  const handleButtonClick = (index: any) => {
-    setIndex(index);
+  const handleButtonClick = (index: any, category: string) => {
+    const updatedIndex = {
+      ...index,
+      category: category,
+    };
+    setIndex(updatedIndex);
     setSidebarOpen(false); // This will close the sidebar
   };
 
@@ -57,10 +60,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
-      {/* <!-- SIDEBAR HEADER --> */}
       <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5">
         <NavLink to="/">
-          <img className="" src={Logo} alt="Logo" />
+          <img src={Logo} alt="Logo" />
         </NavLink>
 
         <button
@@ -73,44 +75,32 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
           <IoIosClose className="text-white w-8 h-8" />
         </button>
       </div>
-      {/* <!-- SIDEBAR HEADER --> */}
 
       <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear text-white">
-        {/* <!-- Sidebar Menu --> */}
         <nav className="mt-5 py-4 px-4 lg:mt-9 lg:px-6">
-          {/* <!-- Attention Group --> */}
-          <div className="mb-20">
-            <h3 className="mb-4 ml-4 text-sm font-semibold">
-              Macroeconomic Attention Indices
-            </h3>
+          {combinedIndices.map((group) => (
+            <div key={group.category} className="mb-20">
+              <h3 className="mb-4 ml-4 text-sm font-semibold">
+                {group.category}
+              </h3>
 
-            <ul className="mb-6 flex flex-col gap-1.5">
-              {indices.map((index) => (
-                <NavLink to="/">
-                  <li
-                    key={index.title}
-                    className="ml-4 cursor-pointer"
-                    onClick={() => handleButtonClick(index)}
-                  >
-                    <span className="text-base font-medium">{index.title}</span>
-                  </li>
-                </NavLink>
-              ))}
-            </ul>
-          </div>
-
-          {/* <!-- Other Group --> */}
-          <div>
-            <h3 className="mb-4 ml-4 text-sm font-semibold">Other</h3>
-
-            <ul className="mb-6 flex flex-col gap-1.5">
-              {/* <!-- Menu Item BB --> */}
-
-              {/* <!-- Menu Item BB --> */}
-            </ul>
-          </div>
+              <ul className="mb-6 flex flex-col gap-1.5">
+                {group.items.map((index) => (
+                  <NavLink to="/" key={index.title}>
+                    <li
+                      className="ml-4 cursor-pointer"
+                      onClick={() => handleButtonClick(index, group.category)}
+                    >
+                      <span className="text-base font-medium">
+                        {index.title}
+                      </span>
+                    </li>
+                  </NavLink>
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
-        {/* <!-- Sidebar Menu --> */}
       </div>
     </aside>
   );
@@ -118,13 +108,26 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, setIndex }: SidebarProps) => {
 
 export default Sidebar;
 
-const indices = [
-  { title: "Credit Rating", columns: [1, 2, 3] },
-  { title: "GDP", columns: [4, 5, 6] },
-  { title: "Housing Market", columns: [7, 8, 9] }, // Assuming similar columns as above
-  { title: "Inflation", columns: [10, 11, 12] },
-  { title: "Monetary", columns: [13, 14, 15] },
-  { title: "Oil", columns: [16, 17, 18] },
-  { title: "Unemployment", columns: [19, 20, 21] },
-  { title: "U.S. Dollar", columns: [22, 23, 24] },
+const combinedIndices = [
+  {
+    category: "Macroeconomic Attention Indices",
+    items: [
+      { title: "Credit Rating", columns: [1, 2, 3] },
+      { title: "GDP", columns: [4, 5, 6] },
+      { title: "Housing Market", columns: [7, 8, 9] },
+      { title: "Inflation", columns: [10, 11, 12] },
+      { title: "Monetary", columns: [13, 14, 15] },
+      { title: "Oil", columns: [16, 17, 18] },
+      { title: "Unemployment", columns: [19, 20, 21] },
+      { title: "U.S. Dollar", columns: [22, 23, 24] },
+    ],
+  },
+  {
+    category: "Narrative Uncertainty",
+    items: [
+      { title: "Commodity", columns: [21, 22, 23, 24] },
+      { title: "Monetary", columns: [1, 2, 3, 4] },
+      { title: "Inflation", columns: [13, 14, 15, 16, 17, 18, 19, 20] },
+    ],
+  },
 ];

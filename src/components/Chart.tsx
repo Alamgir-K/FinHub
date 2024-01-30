@@ -1,99 +1,163 @@
+// @ts-nocheck
 import { useRef, useEffect, useState } from "react";
 import ReactApexChart from "react-apexcharts";
-import { ApexOptions } from "apexcharts";
 
-// Define the shape of the data point
-interface DataPoint {
-  date: string;
-  defaultValue: number;
-  wiValue: number;
-  niValue: number;
-}
-
-// Props for the Chart component
-interface ChartProps {
-  index: any;
-}
-
-// Define the shape of each series object
-// Modify the Series interface to accept data points with x and y properties
-interface Series {
-  name: string;
-  data: { x: string; y: number }[]; // Update the type of 'data' to an array of objects
-}
-
-const Chart: React.FC<ChartProps> = ({ index }) => {
-  type DataLinkKey = keyof typeof monthlyDataLinks;
-  const monthlyDataLinks = {
-    Demeaned:
-      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Demeaned.csv",
-    NotDemeaned:
-      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_NotDemeaned.csv",
-    Standardized:
-      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Standardized.csv",
-  };
-  const dailyDataLinks = {
-    Demeaned:
-      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_Demeaned.csv",
-    NotDemeaned:
-      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_NotDemeaned.csv",
-    Standardized:
-      "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_Standardized.csv",
-  };
-
-  const [dataLink, setDataLink] = useState<DataLinkKey>("Demeaned");
+const Chart = ({ index }) => {
+  const [normalization, setNormalization] = useState("Demeaned");
   const chartRef = useRef(null);
-  const [allData, setAllData] = useState<{ [key in DataLinkKey]: DataPoint[] }>(
-    {
-      Demeaned: [],
-      NotDemeaned: [],
-      Standardized: [],
-    }
-  );
+  const [allData, setAllData] = useState({
+    Demeaned: [],
+    NotDemeaned: [],
+    Standardized: [],
+    LM: [],
+    ML: [],
+  });
   const [showDefaultValue, setShowDefaultValue] = useState(true);
   const [showWiValue, setShowWiValue] = useState(false);
   const [showNiValue, setShowNiValue] = useState(false);
-  const [seriesData, setSeriesData] = useState<Series[]>([]);
-  const [smoothingLevel, setSmoothingLevel] = useState(0); // 0 for no smoothing, 3 for 3-month smoothing
+  const [seriesData, setSeriesData] = useState([]);
+  const [smoothingLevel, setSmoothingLevel] = useState(0);
+  const [isNarrativeUncertainty, setIsNarrativeUncertainty] = useState(false);
+  const [showWiScreenedValue, setShowWiScreenedValue] = useState(false);
+  const [showWiWeightedValue, setShowWiWeightedValue] = useState(false);
+  const [showNiScreenedValue, setShowNiScreenedValue] = useState(false);
+  const [showNiWeightedValue, setShowNiWeightedValue] = useState(false);
+  const [showVIX, setShowVIX] = useState(false);
+  const [showMOVE, setShowMOVE] = useState(false);
+  const [showMPU, setShowMPU] = useState(false);
+  const [vixData, setVixData] = useState([]);
+  const [mpuData, setMpuData] = useState([]);
+  const [moveData, setMoveData] = useState([]);
 
-  // Load all data when the component mounts
   useEffect(() => {
-    Promise.all(
-      Object.entries(monthlyDataLinks).map(([key, url]) =>
+    // Determine if the category is Narrative Uncertainty
+    const isNU = index.category === "Narrative Uncertainty";
+    setIsNarrativeUncertainty(isNU);
+
+    const objectEntries = isNU
+      ? uncertaintyMonthlyDataLinks
+      : maiMonthlyDataLinks;
+    let columnIndex = 0; // Start from column index 1
+
+    const fetchData = Promise.all(
+      Object.entries(objectEntries).map(([key, url]) =>
         fetch(url)
           .then((response) => response.text())
           .then((text) => {
             const rows = text.split("\n").slice(1);
             const newData = rows.map((row) => {
               const columns = row.split(",");
-              return {
-                date: columns[0],
-                defaultValue: parseFloat(columns[index.columns[0]]),
-                wiValue: parseFloat(columns[index.columns[1]]),
-                niValue: parseFloat(columns[index.columns[2]]),
-              };
+              let dataEntry;
+
+              if (!isNU) {
+                dataEntry = {
+                  date: columns[0],
+                  defaultValue: parseFloat(columns[index.columns[2]]),
+                  wiValue: parseFloat(columns[index.columns[0]]),
+                  niValue: parseFloat(columns[index.columns[1]]),
+                };
+              } else if (
+                isNU &&
+                (index.title === "Commodity" || index.title === "Monetary")
+              ) {
+                // Handle only WSJ and NYT values
+                dataEntry = {
+                  date: columns[0],
+                  wiValue: parseFloat(columns[index.columns[columnIndex]]),
+                  niValue: parseFloat(columns[index.columns[columnIndex + 2]]),
+                };
+              } else {
+                // Handle Inflation case with 4 values
+                dataEntry = {
+                  date: columns[0],
+                  wiWeightedValue: parseFloat(
+                    columns[index.columns[columnIndex]]
+                  ),
+                  wiScreenedValue: parseFloat(
+                    columns[index.columns[columnIndex + 2]]
+                  ),
+                  niWeightedValue: parseFloat(
+                    columns[index.columns[columnIndex + 4]]
+                  ),
+                  niScreenedValue: parseFloat(
+                    columns[index.columns[columnIndex + 6]]
+                  ),
+                };
+              }
+              return dataEntry;
             });
+            columnIndex += 1;
+
             return { key, newData };
           })
       )
     ).then((results) => {
-      const newData = results.reduce<{ [key in DataLinkKey]: DataPoint[] }>(
+      const newData = results.reduce(
         (acc, { key, newData }) => ({ ...acc, [key]: newData }),
-        { Demeaned: [], NotDemeaned: [], Standardized: [] } // Initial value with explicit type
+        {
+          Demeaned: [],
+          NotDemeaned: [],
+          Standardized: [],
+          LM: [],
+          ML: [],
+        }
       );
       setAllData(newData);
     });
   }, [index]);
 
-  // Update seriesData whenever the related states change
   useEffect(() => {
-    const currentData = allData[dataLink];
-    // Function to calculate the rolling mean for a given data point index
-    const rollingMean = (
-      data: string | any[],
-      index: number,
-      windowSize: number
-    ) => {
+    fetch(
+      "https://raw.githubusercontent.com/Alamgir-K/FinHub/main/src/data/unc_and_mai_combined.csv"
+    )
+      .then((response) => response.text())
+      .then((text) => {
+        const rows = text.split("\n").slice(1);
+        const tempVixData = [],
+          tempMpuData = [],
+          tempMoveData = [];
+
+        rows.forEach((row) => {
+          const columns = row.split(",");
+          const date = columns[0];
+          tempVixData.push({ date, value: parseFloat(columns[10]) });
+          tempMpuData.push({ date, value: parseFloat(columns[11]) });
+          tempMoveData.push({ date, value: parseFloat(columns[12]) });
+        });
+
+        setVixData(tempVixData);
+        setMpuData(tempMpuData);
+        setMoveData(tempMoveData);
+      });
+  }, []); // Ensure 'index' is a valid dependency
+
+  useEffect(() => {
+    if (isNarrativeUncertainty) {
+      if (index.title === "Commodity" || index.title === "Monetary") {
+        setShowWiValue(true);
+        setShowWiWeightedValue(false);
+      } else {
+        setShowWiWeightedValue(true);
+        setShowWiValue(false);
+      }
+      setShowDefaultValue(false);
+      setShowNiValue(false);
+      setNormalization("LM");
+    } else {
+      setShowDefaultValue(true);
+      setShowWiValue(false);
+      setShowNiValue(false);
+      setNormalization("Demeaned");
+    }
+    setShowVIX(false);
+    setShowMPU(false);
+    setShowMOVE(false);
+    setSmoothingLevel(0);
+  }, [isNarrativeUncertainty, index]);
+
+  useEffect(() => {
+    const currentData = allData[normalization];
+    const rollingMean = (data, index, windowSize) => {
       let sum = 0;
       let count = 0;
       for (
@@ -104,11 +168,10 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
         sum += data[i];
         count++;
       }
-      return count > 0 ? sum / count : 0; // Return 0 or another default value if count is 0
+      return count > 0 ? sum / count : 0;
     };
 
-    // Function to generate series data with rolling mean applied
-    const generateSeriesData = (data: any[], valueKey: string) => {
+    const generateSeriesData = (data, valueKey) => {
       return data
         .map((dp, index) => ({
           x: dp.date,
@@ -121,14 +184,16 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
                 )
               : dp[valueKey],
         }))
-        .filter((dp) => !isNaN(dp.y)); // Filter out data points with NaN values
+        .filter((dp) => !isNaN(dp.y));
     };
 
     const newSeriesData = [];
 
+    console.log(currentData);
+
     if (showDefaultValue) {
       newSeriesData.push({
-        name: "Default Value",
+        name: "WSJ + NYT",
         data: generateSeriesData(currentData, "defaultValue"),
       });
     }
@@ -144,70 +209,153 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
         data: generateSeriesData(currentData, "niValue"),
       });
     }
+    if (showWiWeightedValue) {
+      newSeriesData.push({
+        name: "WSJ Weighted Value",
+        data: generateSeriesData(currentData, "wiWeightedValue"),
+      });
+    }
+    if (showWiScreenedValue) {
+      newSeriesData.push({
+        name: "WSJ Screened Value",
+        data: generateSeriesData(currentData, "wiScreenedValue"),
+      });
+    }
+    if (showNiWeightedValue) {
+      newSeriesData.push({
+        name: "NYT Weighted Value",
+        data: generateSeriesData(currentData, "niWeightedValue"),
+      });
+    }
+    if (showNiScreenedValue) {
+      newSeriesData.push({
+        name: "NYT Screened Value",
+        data: generateSeriesData(currentData, "niScreenedValue"),
+      });
+    }
+    if (showVIX) {
+      newSeriesData.push({
+        name: "VIX Value",
+        data: generateSeriesData(vixData, "value"),
+      });
+    }
+    if (showMPU) {
+      newSeriesData.push({
+        name: "Marked-based Uncertainty Value Value",
+        data: generateSeriesData(mpuData, "value"),
+      });
+    }
+    if (showMOVE) {
+      newSeriesData.push({
+        name: "MOVE Value",
+        data: generateSeriesData(moveData, "value"),
+      });
+    }
 
     setSeriesData(newSeriesData);
   }, [
     allData,
-    dataLink,
+    normalization,
     showDefaultValue,
     showWiValue,
     showNiValue,
+    showWiWeightedValue,
+    showWiScreenedValue,
+    showNiWeightedValue,
+    showNiScreenedValue,
+    showVIX,
+    showMPU,
+    showMOVE,
+    vixData,
+    mpuData,
+    moveData,
     smoothingLevel,
   ]);
 
-  const handleButtonClick = (dataLinkKey: DataLinkKey) => {
-    setDataLink(dataLinkKey);
+  const handleButtonClick = (normalizationType) => {
+    setNormalization(normalizationType);
   };
 
-  const handleSmoothingClick = (level: number) => {
+  const handleSmoothingClick = (level) => {
     setSmoothingLevel(level);
   };
 
-  const downloadCsv = async (dataType: string) => {
-    const url =
-      dataType === "daily"
-        ? dailyDataLinks[dataLink]
-        : monthlyDataLinks[dataLink];
+  const downloadCsv = async (dataType) => {
+    let url = "";
+
+    // Determine the URL based on the given conditions
+    if (isNarrativeUncertainty) {
+      if (dataType === "daily") {
+        url = uncertaintyDailyDataLink;
+      } else {
+        // dataType is monthly
+        url = uncertaintyMonthlyDataLinks[normalization];
+      }
+    } else {
+      // Not narrative uncertainty
+      if (dataType === "daily") {
+        url = maiDailyDataLinks[normalization];
+      } else {
+        // dataType is monthly
+        url = maiMonthlyDataLinks[normalization];
+      }
+    }
+
+    // Fetch the CSV data
     const response = await fetch(url);
     const text = await response.text();
 
-    // Define the headings
-    let headings = ["Date"];
-    if (showDefaultValue) headings.push("Default Value");
-    if (showWiValue) headings.push("WSJ Value");
-    if (showNiValue) headings.push("NYT Value");
+    // Create a Blob from the CSV text
+    const blob = new Blob([text], { type: "text/csv" });
 
-    // Process the CSV data
-    const rows = text.split("\n").slice(1);
-    const filteredData = rows.map((row) => {
-      const columns = row.split(",");
-      let selectedData = [columns[0]]; // Always include the date
-      if (showDefaultValue) selectedData.push(columns[index.columns[0]]);
-      if (showWiValue) selectedData.push(columns[index.columns[1]]);
-      if (showNiValue) selectedData.push(columns[index.columns[2]]);
-      return selectedData.join(",");
-    });
+    // Create a link and trigger the download
+    const downloadLink = document.createElement("a");
+    downloadLink.href = window.URL.createObjectURL(blob);
+    downloadLink.download = `${index.category}_${normalization}_${dataType}.csv`; // You can customize the file name here
 
-    // Prepend headings and convert array to CSV string
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headings.join(","), ...filteredData].join("\n");
+    // Append the link to the document and click it
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
 
-    // Create a link to trigger the download
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${index.title}_${dataLink}_${dataType}.csv`);
-    document.body.appendChild(link); // Required for FF
-
-    // Trigger the download
-    link.click();
-    document.body.removeChild(link); // Clean up
+    // Clean up: remove the link after triggering the download
+    document.body.removeChild(downloadLink);
   };
 
+  const recessionAnnotations = NBER_recession_dates.map((period) => ({
+    x: new Date(period.start).getTime(),
+    x2: new Date(period.stop).getTime(),
+    fillColor: "rgba(128, 128, 128, 0.2)", // Grey color with reduced opacity
+    label: {
+      text: "Recession",
+      style: {
+        color: "#000", // Text color
+        background: "transparent", // Transparent background
+      },
+    },
+  }));
+
   // Chart configuration
-  const options: ApexOptions = {
-    colors: ["#3C50E0", "#80CAEE", "#FF914D"],
+  const options = {
+    annotations: {
+      xaxis: recessionAnnotations.map((annotation) => ({
+        x: annotation.x,
+        x2: annotation.x2,
+        fillColor: annotation.fillColor,
+        // label: annotation.label,
+      })),
+    },
+    colors: [
+      "#3C50E0",
+      "#80CAEE",
+      "#FF914D",
+      "#50C878",
+      "#8F00FF",
+      "#FF2400",
+      "#FD5E53",
+      "#40E0D0",
+      "#9966CC",
+      "#FFF44F",
+    ],
     tooltip: {
       x: {
         format: "dd MMM yyyy", // Format the date as 'Day Month Year'
@@ -240,7 +388,7 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
         },
         export: {
           csv: {
-            filename: index.title + " " + dataLink,
+            filename: index.title + " " + normalization,
             columnDelimiter: ",",
             headerCategory: "Date",
             headerValue: "Value",
@@ -250,37 +398,30 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
             },
           },
           svg: {
-            filename: index.title + " " + dataLink,
+            filename: index.title + " " + normalization,
           },
           png: {
-            filename: index.title + " " + dataLink,
+            filename: index.title + " " + normalization,
           },
         },
         autoSelected: "zoom",
       },
     },
-    // responsive: [
-    //   {
-    //     breakpoint: 1024,
-    //     options: {
-    //       chart: {
-    //         height: 800,
-    //       },
-    //     },
-    //   },
-    //   {
-    //     breakpoint: 1366,
-    //     options: {
-    //       chart: {
-    //         height: 850,
-    //       },
-    //     },
-    //   },
-    // ],
     stroke: {
       width: 2, // Slightly increased width
       curve: "smooth", // Changed to smooth for testing
-      colors: ["#3C50E0", "#80CAEE", "#FF914D"],
+      colors: [
+        "#3C50E0",
+        "#80CAEE",
+        "#FF914D",
+        "#50C878",
+        "#8F00FF",
+        "#FF2400",
+        "#FD5E53",
+        "#40E0D0",
+        "#9966CC",
+        "#FFF44F",
+      ],
     },
     fill: {
       type: "solid",
@@ -333,70 +474,177 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
         {index.title + " (Monthly Frequency)"}
       </p>
       <div className="mt-2 flex w-full flex-wrap gap-2">
-        <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={showDefaultValue}
-              onChange={() => setShowDefaultValue(!showDefaultValue)}
-            />
-            <span className="ml-2 text-xs font-medium text-black dark:text-white">
-              Default
-            </span>
-          </label>
-          <label className="flex items-center ml-4">
-            <input
-              type="checkbox"
-              checked={showWiValue}
-              onChange={() => setShowWiValue(!showWiValue)}
-            />
-            <span className="ml-2 text-xs font-medium text-black dark:text-white">
-              WSJ
-            </span>
-          </label>
-          <label className="flex items-center ml-4">
-            <input
-              type="checkbox"
-              checked={showNiValue}
-              onChange={() => setShowNiValue(!showNiValue)}
-            />
-            <span className="ml-2 text-xs font-medium text-black dark:text-white">
-              NYT
-            </span>
-          </label>
-        </div>
-        <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
-          <button
-            className={`rounded py-1 px-3 text-xs font-medium ${
-              dataLink === "Demeaned"
-                ? "text-black bg-white shadow-card "
-                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
-            }  `}
-            onClick={() => handleButtonClick("Demeaned")}
-          >
-            Demeaned
-          </button>
-          <button
-            className={`rounded py-1 px-3 text-xs font-medium ${
-              dataLink === "NotDemeaned"
-                ? "text-black bg-white shadow-card "
-                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
-            }  `}
-            onClick={() => handleButtonClick("NotDemeaned")}
-          >
-            Not Demeaned
-          </button>
-          <button
-            className={`rounded py-1 px-3 text-xs font-medium ${
-              dataLink === "Standardized"
-                ? "text-black bg-white shadow-card "
-                : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
-            }  `}
-            onClick={() => handleButtonClick("Standardized")}
-          >
-            Standardized
-          </button>
-        </div>
+        {!isNarrativeUncertainty ? (
+          <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showDefaultValue}
+                onChange={() => setShowDefaultValue(!showDefaultValue)}
+              />
+              <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                WSJ + NYT
+              </span>
+            </label>
+            <label className="flex items-center ml-4">
+              <input
+                type="checkbox"
+                checked={showWiValue}
+                onChange={() => setShowWiValue(!showWiValue)}
+              />
+              <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                WSJ
+              </span>
+            </label>
+            <label className="flex items-center ml-4">
+              <input
+                type="checkbox"
+                checked={showNiValue}
+                onChange={() => setShowNiValue(!showNiValue)}
+              />
+              <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                NYT
+              </span>
+            </label>
+          </div>
+        ) : (
+          <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+            {index.title === "Inflation" ? (
+              <>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={showWiWeightedValue}
+                    onChange={() =>
+                      setShowWiWeightedValue(!showWiWeightedValue)
+                    }
+                  />
+                  <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                    WSJ Weighted
+                  </span>
+                </label>
+                <label className="flex items-center ml-4">
+                  <input
+                    type="checkbox"
+                    checked={showWiScreenedValue}
+                    onChange={() =>
+                      setShowWiScreenedValue(!showWiScreenedValue)
+                    }
+                  />
+                  <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                    WSJ Screened
+                  </span>
+                </label>
+                <label className="flex items-center ml-4">
+                  <input
+                    type="checkbox"
+                    checked={showNiWeightedValue}
+                    onChange={() =>
+                      setShowNiWeightedValue(!showNiWeightedValue)
+                    }
+                  />
+                  <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                    NYT Weighted
+                  </span>
+                </label>
+                <label className="flex items-center ml-4">
+                  <input
+                    type="checkbox"
+                    checked={showNiScreenedValue}
+                    onChange={() =>
+                      setShowNiScreenedValue(!showNiScreenedValue)
+                    }
+                  />
+                  <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                    NYT Screened
+                  </span>
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={showWiValue}
+                    onChange={() => setShowWiValue(!showWiValue)}
+                  />
+                  <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                    WSJ
+                  </span>
+                </label>
+                <label className="flex items-center ml-4">
+                  <input
+                    type="checkbox"
+                    checked={showNiValue}
+                    onChange={() => setShowNiValue(!showNiValue)}
+                  />
+                  <span className="ml-2 text-xs font-medium text-black dark:text-white">
+                    NYT
+                  </span>
+                </label>
+              </>
+            )}
+          </div>
+        )}
+
+        {!isNarrativeUncertainty ? (
+          <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                normalization === "Demeaned"
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
+              onClick={() => handleButtonClick("Demeaned")}
+            >
+              Demeaned
+            </button>
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                normalization === "NotDemeaned"
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
+              onClick={() => handleButtonClick("NotDemeaned")}
+            >
+              Not Demeaned
+            </button>
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                normalization === "Standardized"
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
+              onClick={() => handleButtonClick("Standardized")}
+            >
+              Standardized
+            </button>
+          </div>
+        ) : (
+          <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                normalization === "LM"
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
+              onClick={() => handleButtonClick("LM")}
+            >
+              Loughran + McDonald
+            </button>
+            <button
+              className={`rounded py-1 px-3 text-xs font-medium ${
+                normalization === "ML"
+                  ? "text-black bg-white shadow-card "
+                  : "text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
+              }  `}
+              onClick={() => handleButtonClick("ML")}
+            >
+              BERT
+            </button>
+          </div>
+        )}
+
         <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
           <button
             className={`rounded py-1 px-3 text-xs font-medium ${
@@ -419,6 +667,40 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
             3 month smoothing
           </button>
         </div>
+
+        <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={showVIX}
+              onChange={() => setShowVIX(!showVIX)}
+            />
+            <span className="ml-2 text-xs font-medium text-black dark:text-white">
+              VIX
+            </span>
+          </label>
+          <label className="flex items-center ml-4">
+            <input
+              type="checkbox"
+              checked={showMPU}
+              onChange={() => setShowMPU(!showMPU)}
+            />
+            <span className="ml-2 text-xs font-medium text-black dark:text-white">
+              Market-based Monetary Uncertainty
+            </span>
+          </label>
+          <label className="flex items-center ml-4">
+            <input
+              type="checkbox"
+              checked={showMOVE}
+              onChange={() => setShowMOVE(!showMOVE)}
+            />
+            <span className="ml-2 text-xs font-medium text-black dark:text-white">
+              MOVE
+            </span>
+          </label>
+        </div>
+
         <div className="inline-flex items-center rounded-md bg-whiter p-1.5 dark:bg-meta-4">
           <button
             className="rounded py-1 px-3 text-xs font-medium text-black hover:bg-white hover:shadow-card dark:text-white dark:hover:bg-boxdark"
@@ -451,3 +733,36 @@ const Chart: React.FC<ChartProps> = ({ index }) => {
 };
 
 export default Chart;
+
+const maiMonthlyDataLinks = {
+  Demeaned:
+    "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Demeaned.csv",
+  NotDemeaned:
+    "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_NotDemeaned.csv",
+  Standardized:
+    "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Monthly/MAI_Monthly_Standardized.csv",
+};
+const maiDailyDataLinks = {
+  Demeaned:
+    "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_Demeaned.csv",
+  NotDemeaned:
+    "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_NotDemeaned.csv",
+  Standardized:
+    "https://raw.githubusercontent.com/charlesmartineau/mai_rfs/main/MAI%20Data/rfs%20original/MAI%20Daily/MAI_Daily_Standardized.csv",
+};
+const uncertaintyMonthlyDataLinks = {
+  LM: "https://raw.githubusercontent.com/Alamgir-K/FinHub/main/src/data/unc_and_mai_combined.csv",
+  ML: "https://raw.githubusercontent.com/Alamgir-K/FinHub/main/src/data/unc_and_mai_combined.csv",
+};
+
+const uncertaintyDailyDataLink =
+  "https://raw.githubusercontent.com/Alamgir-K/FinHub/main/src/data/unc_and_mai_combined_daily.csv";
+
+const NBER_recession_dates = [
+  { start: "2020-03-01", stop: "2020-04-01" },
+  { start: "2008-01-01", stop: "2009-06-01" },
+  { start: "2001-04-01", stop: "2001-11-01" },
+  { start: "1990-08-01", stop: "1991-03-01" },
+  { start: "1981-08-01", stop: "1981-11-01" },
+  { start: "1980-02-01", stop: "1981-07-01" },
+];

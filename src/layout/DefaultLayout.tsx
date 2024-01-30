@@ -8,6 +8,7 @@ const DefaultLayout = () => {
   const [index, setIndex] = useState({
     title: "Credit Rating",
     columns: [1, 2, 3],
+    category: "Macroeconomic Attention Indices",
   });
 
   return (
