@@ -189,8 +189,6 @@ const Chart = ({ index }) => {
 
     const newSeriesData = [];
 
-    console.log(currentData);
-
     if (showDefaultValue) {
       newSeriesData.push({
         name: "WSJ + NYT",
