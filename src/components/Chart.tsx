@@ -144,6 +144,7 @@ const Chart = ({ index }) => {
       setShowNiValue(false);
       setNormalization("LM");
     } else {
+      setShowWiWeightedValue(false);
       setShowDefaultValue(true);
       setShowWiValue(false);
       setShowNiValue(false);
@@ -152,6 +153,9 @@ const Chart = ({ index }) => {
     setShowVIX(false);
     setShowMPU(false);
     setShowMOVE(false);
+    setShowWiScreenedValue(false);
+    setShowNiScreenedValue(false);
+    setShowNiWeightedValue(false);
     setSmoothingLevel(0);
   }, [isNarrativeUncertainty, index]);
 
